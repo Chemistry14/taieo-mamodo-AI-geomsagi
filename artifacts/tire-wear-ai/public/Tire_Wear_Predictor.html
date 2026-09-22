@@ -238,6 +238,17 @@
         font-size: 11px;
         line-height: 1.55;
       }
+      .recommendation-season {
+        display: inline-block !important;
+        width: fit-content;
+        margin-top: 7px;
+        padding: 3px 7px;
+        color: var(--primary-dark) !important;
+        background: #e1f0f8;
+        border-radius: 99px;
+        font-size: 10px !important;
+        font-weight: 700;
+      }
       .recommendation-price {
         margin-top: 10px;
         color: var(--primary);
@@ -312,9 +323,9 @@
           <div class="input-group full-width">
             <label for="season">주행 환경 및 계절</label>
             <select id="season">
-              <option value="1.0">봄/가을 (적정 온도 10~25도)</option>
-              <option value="1.15">여름 (아스팔트 고열로 고무 연화, 마모율 증가)</option>
-              <option value="1.10">겨울 (저온 경화 및 미끄럼 발생 증가)</option>
+              <option value="1.0" data-season-key="mild" data-season-label="봄/가을">봄/가을 (적정 온도 10~25도)</option>
+              <option value="1.15" data-season-key="summer" data-season-label="여름">여름 (아스팔트 고열로 고무 연화, 마모율 증가)</option>
+              <option value="1.10" data-season-key="winter" data-season-label="겨울">겨울 (저온 경화 및 미끄럼 발생 증가)</option>
             </select>
           </div>
         </div>
@@ -353,16 +364,16 @@
       const LIMIT_MM = 1.6;
       const NEW_TREAD_MM = 8.0;
       const localCatalog = [
-        { brand: 'HANKOOK', size: '225/55R17', name: 'Ventus S1 evo3', price: 129000, note: '정숙성과 주행 안정성 균형' },
-        { brand: 'HANKOOK', size: '205/55R16', name: 'Kinergy EX', price: 98000, note: '일상 주행 중심의 편안한 승차감' },
-        { brand: 'KUMHO', size: '225/55R17', name: 'ECSTA PS71', price: 116000, note: '젖은 노면 제동과 핸들링' },
-        { brand: 'KUMHO', size: '235/45R18', name: 'ECSTA PS91', price: 174000, note: '고성능 차량용 스포츠 타이어' },
-        { brand: 'NEXEN', size: '225/55R17', name: 'NFERA AU7', price: 108000, note: '저소음과 장거리 주행' },
-        { brand: 'NEXEN', size: '215/60R17', name: 'NFERA Supreme', price: 121000, note: 'SUV 승차감과 안정성' },
-        { brand: 'MICHELIN', size: '225/55R17', name: 'Primacy 4+', price: 188000, note: '마일리지와 젖은 노면 성능' },
-        { brand: 'MICHELIN', size: '205/55R16', name: 'Primacy 4', price: 159000, note: '편안한 승차감과 정숙성' },
-        { brand: 'CONTINENTAL', size: '225/55R17', name: 'PremiumContact 7', price: 177000, note: '균형 잡힌 제동과 코너링' },
-        { brand: 'PIRELLI', size: '235/45R18', name: 'P ZERO', price: 214000, note: '스포츠 주행 반응성과 접지력' },
+        { brand: 'HANKOOK', size: '225/55R17', name: 'Ventus S1 evo3', price: 129000, note: '정숙성과 주행 안정성 균형', seasonFit: { mild: 4, summer: 4, winter: 2 } },
+        { brand: 'HANKOOK', size: '205/55R16', name: 'Kinergy EX', price: 98000, note: '일상 주행 중심의 편안한 승차감', seasonFit: { mild: 4, summer: 3, winter: 2 } },
+        { brand: 'KUMHO', size: '225/55R17', name: 'ECSTA PS71', price: 116000, note: '젖은 노면 제동과 핸들링', seasonFit: { mild: 4, summer: 5, winter: 2 } },
+        { brand: 'KUMHO', size: '235/45R18', name: 'ECSTA PS91', price: 174000, note: '고성능 차량용 스포츠 타이어', seasonFit: { mild: 4, summer: 5, winter: 1 } },
+        { brand: 'NEXEN', size: '225/55R17', name: 'NFERA AU7', price: 108000, note: '저소음과 장거리 주행', seasonFit: { mild: 4, summer: 4, winter: 2 } },
+        { brand: 'NEXEN', size: '215/60R17', name: 'NFERA Supreme', price: 121000, note: 'SUV 승차감과 안정성', seasonFit: { mild: 4, summer: 3, winter: 2 } },
+        { brand: 'MICHELIN', size: '225/55R17', name: 'Primacy 4+', price: 188000, note: '마일리지와 젖은 노면 성능', seasonFit: { mild: 5, summer: 4, winter: 2 } },
+        { brand: 'MICHELIN', size: '205/55R16', name: 'Primacy 4', price: 159000, note: '편안한 승차감과 정숙성', seasonFit: { mild: 5, summer: 4, winter: 2 } },
+        { brand: 'CONTINENTAL', size: '225/55R17', name: 'PremiumContact 7', price: 177000, note: '균형 잡힌 제동과 코너링', seasonFit: { mild: 4, summer: 4, winter: 2 } },
+        { brand: 'PIRELLI', size: '235/45R18', name: 'P ZERO', price: 214000, note: '스포츠 주행 반응성과 접지력', seasonFit: { mild: 4, summer: 5, winter: 1 } },
       ];
 
       const getNumber = (id) => Number(document.getElementById(id).value);
@@ -375,17 +386,29 @@
       function renderRecommendations() {
         const brand = document.getElementById('tireBrand').value;
         const size = normalizeSize(document.getElementById('tireSize').value);
-        const exactMatches = localCatalog.filter((item) =>
+        const selectedSeason = document.getElementById('season').selectedOptions[0];
+        const seasonKey = selectedSeason.dataset.seasonKey || 'mild';
+        const seasonLabel = selectedSeason.dataset.seasonLabel || '현재 계절';
+        const ranked = localCatalog
+          .map((item) => {
+            const sizeScore = size && item.size === size ? 100 : (size ? 0 : 10);
+            const brandScore = brand && item.brand === brand ? 30 : (brand ? 0 : 5);
+            const seasonScore = (item.seasonFit[seasonKey] || 0) * 10;
+            return { item, score: sizeScore + brandScore + seasonScore };
+          })
+          .sort((left, right) => right.score - left.score);
+        const matches = ranked.filter(({ item }) =>
           (!brand || item.brand === brand) && (!size || item.size === size)
         );
-        const sizeMatches = localCatalog.filter((item) => (!size || item.size === size));
-        const brandMatches = localCatalog.filter((item) => (!brand || item.brand === brand));
-        const matches = exactMatches.length ? exactMatches : (sizeMatches.length ? sizeMatches : (brandMatches.length ? brandMatches : localCatalog.slice(0, 3)));
+        const fallback = ranked.filter(({ item }) => (!size || item.size === size));
+        const brandFallback = ranked.filter(({ item }) => (!brand || item.brand === brand));
+        const selected = matches.length ? matches : (fallback.length ? fallback : (brandFallback.length ? brandFallback : ranked));
         const list = document.getElementById('recommendationList');
-        list.innerHTML = matches.slice(0, 3).map((item) => `
+        list.innerHTML = selected.slice(0, 3).map(({ item }) => `
           <article class="recommendation-card">
             <strong>${escapeHtml(item.brand)} · ${escapeHtml(item.name)}</strong>
             <span>${escapeHtml(item.size)} · ${escapeHtml(item.note)}</span>
+            <span class="recommendation-season">${escapeHtml(seasonLabel)} 적합도 ${item.seasonFit[seasonKey]}/5</span>
             <span class="recommendation-price">참고가 ${formatNumber(item.price)}원</span>
           </article>
         `).join('');
