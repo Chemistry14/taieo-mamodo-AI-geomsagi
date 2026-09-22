@@ -249,6 +249,26 @@
         font-size: 10px !important;
         font-weight: 700;
       }
+      .google-search-link {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        margin-top: 12px;
+        padding: 8px 9px;
+        color: var(--primary-dark) !important;
+        background: #f5fbff;
+        border: 1px solid #b9d7e8;
+        border-radius: 7px;
+        font-size: 11px !important;
+        font-weight: 800;
+        text-decoration: none;
+        transition: background .2s, border-color .2s;
+      }
+      .google-search-link:hover {
+        background: #e1f0f8;
+        border-color: var(--primary);
+      }
       .recommendation-price {
         margin-top: 10px;
         color: var(--primary);
@@ -410,6 +430,12 @@
             <span>${escapeHtml(item.size)} · ${escapeHtml(item.note)}</span>
             <span class="recommendation-season">${escapeHtml(seasonLabel)} 적합도 ${item.seasonFit[seasonKey]}/5</span>
             <span class="recommendation-price">참고가 ${formatNumber(item.price)}원</span>
+            <a
+              class="google-search-link"
+              href="${escapeHtml(`https://www.google.com/search?tbm=shop&hl=ko&gl=kr&q=${encodeURIComponent(`${item.brand} ${item.name} ${item.size}`)}`)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >구글에서 최저가 비교</a>
           </article>
         `).join('');
       }
