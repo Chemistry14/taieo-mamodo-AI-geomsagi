@@ -265,6 +265,15 @@ function Home() {
                     <div className="metric" data-testid="metric-tread-depth"><span className="metric-label">추정 트레드 깊이</span><strong className="metric-value">{result.depthMm.toFixed(1)}<small>mm</small></strong></div>
                   </div>
                   <p className="explanation" data-testid="text-result-explanation"><Ruler size={14} style={{ verticalAlign: 'middle', marginRight: 5, color: 'hsl(194 81% 38%)' }} /> 카드 단변 53.98mm와 사진 속 카드 폭을 기준으로, 40px 숨은 깊이 휴리스틱을 비례 환산한 추정값입니다. 촬영 각도와 빛에 따라 달라질 수 있습니다.</p>
+                   <a
+                     className="apply-predictor-button"
+                     href={`./Tire_Wear_Predictor.html?currentWear=${encodeURIComponent(result.depthMm.toFixed(1))}`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     data-testid="link-apply-tread-depth"
+                   >
+                     <Gauge /> 이 트레드 깊이로 수명 예측하기
+                   </a>
                   <button type="button" className="reset-button" onClick={reset} data-testid="button-reset-inspection"><RotateCcw /> 다시 검사하기</button>
                 </div>
               </div>

@@ -95,6 +95,14 @@
         font-size: 11px;
         line-height: 1.5;
       }
+      .applied-depth-note {
+        display: none;
+        margin: 0;
+        color: var(--success);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.5;
+      }
       .btn {
         width: 100%;
         margin-top: 28px;
@@ -307,8 +315,9 @@
         <div class="grid">
           <div class="input-group">
             <label for="currentWear">현재 트레드 깊이 (mm)</label>
-            <input type="number" id="currentWear" value="5.5" step="0.1" min="1.6" max="8.0">
+            <input type="number" id="currentWear" value="5.5" step="0.1" min="0" max="8.0">
             <span class="help-text">신품 약 8mm, 법적 한계선 1.6mm</span>
+            <p class="applied-depth-note" id="appliedDepthNote"></p>
           </div>
 
           <div class="input-group">
@@ -412,6 +421,16 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
       }[character]));
 
+      function applyInspectionDepth() {
+        const queryValue = Number(new URLSearchParams(window.location.search).get('currentWear'));
+        if (!Number.isFinite(queryValue) || queryValue < 0 || queryValue > NEW_TREAD_MM) return;
+        const appliedValue = Number(queryValue.toFixed(1));
+        document.getElementById('currentWear').value = appliedValue.toFixed(1);
+        const note = document.getElementById('appliedDepthNote');
+        note.textContent = `사진 검사 결과 ${appliedValue.toFixed(1)}mm를 적용했습니다.`;
+        note.style.display = 'block';
+      }
+
       function renderRecommendations() {
         const brand = document.getElementById('tireBrand').value;
         const size = normalizeSize(document.getElementById('tireSize').value);
@@ -468,8 +487,8 @@
         const avgTime = getNumber('avgTime');
         const seasonFactor = getNumber('season');
 
-        if (!Number.isFinite(currentWear) || currentWear < LIMIT_MM || currentWear > NEW_TREAD_MM) {
-          showError('현재 트레드 깊이는 1.6mm에서 8.0mm 사이로 입력해 주세요.');
+        if (!Number.isFinite(currentWear) || currentWear < 0 || currentWear > NEW_TREAD_MM) {
+          showError('현재 트레드 깊이는 0mm에서 8.0mm 사이로 입력해 주세요.');
           return;
         }
         if (!Number.isFinite(totalMileage) || totalMileage <= 0 || !Number.isFinite(avgDist) || avgDist <= 0 || !Number.isFinite(avgTime) || avgTime <= 0) {
@@ -520,6 +539,7 @@
           if (event.key === 'Enter') calculate();
         });
       });
+      applyInspectionDepth();
     </script>
   </body>
 </html>
