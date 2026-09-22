@@ -200,12 +200,57 @@
         font-size: 11px;
         line-height: 1.7;
       }
+      .recommendation-box {
+        margin-top: 24px;
+        padding-top: 22px;
+        border-top: 1px solid #cde2ef;
+      }
+      .recommendation-box h3 {
+        margin: 0 0 5px;
+        color: var(--primary-dark);
+        font-size: 16px;
+        letter-spacing: -.03em;
+      }
+      .recommendation-note {
+        margin: 0 0 14px;
+        color: var(--text-muted);
+        font-size: 11px;
+      }
+      .recommendation-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .recommendation-card {
+        padding: 14px;
+        background: rgba(255,255,255,.72);
+        border: 1px solid #cde2ef;
+        border-radius: 11px;
+      }
+      .recommendation-card strong {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+      }
+      .recommendation-card span {
+        display: block;
+        color: var(--text-muted);
+        font-size: 11px;
+        line-height: 1.55;
+      }
+      .recommendation-price {
+        margin-top: 10px;
+        color: var(--primary);
+        font-size: 14px !important;
+        font-weight: 800;
+      }
       @media (max-width: 620px) {
         .page { width: min(100% - 22px, 520px); padding: 22px 0 40px; }
         .container { padding: 22px 18px; border-radius: 18px; }
         .grid { grid-template-columns: 1fr; gap: 16px; }
         .input-group.full-width { grid-column: auto; }
         .result-box { padding: 19px 16px; }
+        .recommendation-list { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -244,6 +289,26 @@
             <span class="help-text">해당 거리를 이동하는 데 걸리는 시간</span>
           </div>
 
+          <div class="input-group">
+            <label for="tireBrand">타이어 브랜드</label>
+            <select id="tireBrand">
+              <option value="">전체 브랜드</option>
+              <option value="HANKOOK">한국타이어</option>
+              <option value="KUMHO">금호타이어</option>
+              <option value="NEXEN">넥센타이어</option>
+              <option value="MICHELIN">미쉐린</option>
+              <option value="CONTINENTAL">콘티넨탈</option>
+              <option value="PIRELLI">피렐리</option>
+            </select>
+            <span class="help-text">추천 목록을 좁히는 데 사용합니다.</span>
+          </div>
+
+          <div class="input-group">
+            <label for="tireSize">타이어 규격</label>
+            <input type="text" id="tireSize" value="225/55R17" placeholder="예: 225/55R17">
+            <span class="help-text">차량 측면 또는 기존 타이어에서 확인하세요.</span>
+          </div>
+
           <div class="input-group full-width">
             <label for="season">주행 환경 및 계절</label>
             <select id="season">
@@ -274,6 +339,12 @@
 
           <div class="insight" id="insightText"></div>
           <p class="formula-note">계산 기준: 현재까지의 마모율, 평균 주행 속도, 선택한 계절 보정값을 반영한 참고용 추정치입니다. 정비소 측정 결과를 우선해 주세요.</p>
+
+          <section class="recommendation-box" aria-labelledby="recommendationTitle">
+            <h3 id="recommendationTitle">입력 규격에 맞는 타이어 참고 목록</h3>
+            <p class="recommendation-note">외부 API 없이 앱에 포함된 참고 카탈로그에서 표시합니다. 가격은 실시간 판매가가 아닙니다.</p>
+            <div class="recommendation-list" id="recommendationList"></div>
+          </section>
         </div>
       </section>
     </main>
@@ -281,9 +352,44 @@
     <script>
       const LIMIT_MM = 1.6;
       const NEW_TREAD_MM = 8.0;
+      const localCatalog = [
+        { brand: 'HANKOOK', size: '225/55R17', name: 'Ventus S1 evo3', price: 129000, note: '정숙성과 주행 안정성 균형' },
+        { brand: 'HANKOOK', size: '205/55R16', name: 'Kinergy EX', price: 98000, note: '일상 주행 중심의 편안한 승차감' },
+        { brand: 'KUMHO', size: '225/55R17', name: 'ECSTA PS71', price: 116000, note: '젖은 노면 제동과 핸들링' },
+        { brand: 'KUMHO', size: '235/45R18', name: 'ECSTA PS91', price: 174000, note: '고성능 차량용 스포츠 타이어' },
+        { brand: 'NEXEN', size: '225/55R17', name: 'NFERA AU7', price: 108000, note: '저소음과 장거리 주행' },
+        { brand: 'NEXEN', size: '215/60R17', name: 'NFERA Supreme', price: 121000, note: 'SUV 승차감과 안정성' },
+        { brand: 'MICHELIN', size: '225/55R17', name: 'Primacy 4+', price: 188000, note: '마일리지와 젖은 노면 성능' },
+        { brand: 'MICHELIN', size: '205/55R16', name: 'Primacy 4', price: 159000, note: '편안한 승차감과 정숙성' },
+        { brand: 'CONTINENTAL', size: '225/55R17', name: 'PremiumContact 7', price: 177000, note: '균형 잡힌 제동과 코너링' },
+        { brand: 'PIRELLI', size: '235/45R18', name: 'P ZERO', price: 214000, note: '스포츠 주행 반응성과 접지력' },
+      ];
 
       const getNumber = (id) => Number(document.getElementById(id).value);
       const formatNumber = (value) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
+      const normalizeSize = (value) => String(value).toUpperCase().replace(/\s+/g, '');
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[character]));
+
+      function renderRecommendations() {
+        const brand = document.getElementById('tireBrand').value;
+        const size = normalizeSize(document.getElementById('tireSize').value);
+        const exactMatches = localCatalog.filter((item) =>
+          (!brand || item.brand === brand) && (!size || item.size === size)
+        );
+        const sizeMatches = localCatalog.filter((item) => (!size || item.size === size));
+        const brandMatches = localCatalog.filter((item) => (!brand || item.brand === brand));
+        const matches = exactMatches.length ? exactMatches : (sizeMatches.length ? sizeMatches : (brandMatches.length ? brandMatches : localCatalog.slice(0, 3)));
+        const list = document.getElementById('recommendationList');
+        list.innerHTML = matches.slice(0, 3).map((item) => `
+          <article class="recommendation-card">
+            <strong>${escapeHtml(item.brand)} · ${escapeHtml(item.name)}</strong>
+            <span>${escapeHtml(item.size)} · ${escapeHtml(item.note)}</span>
+            <span class="recommendation-price">참고가 ${formatNumber(item.price)}원</span>
+          </article>
+        `).join('');
+      }
 
       function showError(message) {
         const errorBox = document.getElementById('errorBox');
@@ -339,6 +445,7 @@
           insightText.style.borderLeftColor = 'var(--success)';
         }
 
+        renderRecommendations();
         document.getElementById('errorBox').style.display = 'none';
         document.getElementById('resultBox').style.display = 'block';
         document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
