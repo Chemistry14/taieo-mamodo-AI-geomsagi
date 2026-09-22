@@ -1,6 +1,6 @@
-# [Project name]
+# 타이어 마모도 AI 검사기
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+사진 속 신용카드 폭을 기준으로 타이어 트레드 깊이를 추정해 주행 전 상태를 안내하는 모바일 친화형 웹 앱입니다.
 
 ## Run & Operate
 
@@ -22,15 +22,19 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/tire-wear-ai/src/App.tsx` — 이미지 선택, 브라우저 내 분석 휴리스틱, 결과 상태 UI
+- `artifacts/tire-wear-ai/src/index.css` — 주행 안전 계기판 테마와 반응형 레이아웃
+- `artifacts/tire-wear-ai/.replit-artifact/artifact.toml` — 웹 미리보기 서비스 설정
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- 이미지 파일은 서버로 보내지 않고 브라우저에서만 분석합니다.
+- 신용카드 단변 53.98mm를 기준으로 사진 속 카드 폭을 환산합니다.
+- 현재 깊이 값은 40px 숨은 깊이 휴리스틱을 사용하는 추정치이며 전문 점검을 대체하지 않습니다.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+사용자는 타이어 홈에 카드를 꽂은 사진을 JPG/JPEG/PNG로 선택하거나 드래그 앤 드롭하고, 카드 폭과 추정 트레드 깊이, 양호·주의·교체 권장 상태를 확인할 수 있습니다.
 
 ## User preferences
 
@@ -38,7 +42,7 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- 정확한 측정 장비가 아닌 사진 기반 추정이므로 결과와 함께 안전 안내를 표시해야 합니다.
 
 ## Pointers
 

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "타이어 마모도 AI 검사기"
+description = "신용카드를 기준 물체로 사용해 타이어 사진을 분석하고, 카드 인식 결과와 추정 홈 깊이를 이해하기 쉽게 보여주는 모바일 친화형 검사 앱입니다."
+version = "1.0.0"
+id = "artifacts/tire-wear-ai"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19611
+
+[services.development]
+run = "pnpm --filter @workspace/tire-wear-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tire-wear-ai", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/tire-wear-ai/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19611"
+BASE_PATH = "/"
