@@ -173,7 +173,16 @@ function Home() {
               <div className="brand-subtitle">한 장의 사진으로 확인하는 주행 전 신호</div>
             </div>
           </div>
-          <div className="status-pip">브라우저에서 바로 분석</div>
+          <a
+            href="./Tire_Wear_Predictor.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="predictor-link"
+            data-testid="link-tire-wear-predictor"
+          >
+            <span aria-hidden="true">🚗</span>
+            타이어 수명 예측기 시작하기
+          </a>
         </header>
 
         <section className="hero">
