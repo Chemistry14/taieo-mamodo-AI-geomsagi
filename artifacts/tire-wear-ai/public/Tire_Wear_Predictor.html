@@ -226,6 +226,15 @@
       }
       .recommendation-list {
         display: grid;
+        gap: 18px;
+      }
+      .recommendation-group h4 {
+        margin: 0 0 9px;
+        color: var(--primary-dark);
+        font-size: 13px;
+      }
+      .recommendation-group-list {
+        display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
       }
@@ -239,6 +248,17 @@
         display: block;
         margin-bottom: 7px;
         font-size: 13px;
+      }
+      .recommendation-rank {
+        display: inline-block !important;
+        width: fit-content;
+        margin-bottom: 7px;
+        padding: 3px 7px;
+        color: #fff !important;
+        background: var(--primary);
+        border-radius: 99px;
+        font-size: 10px !important;
+        font-weight: 800;
       }
       .recommendation-card span {
         display: block;
@@ -254,6 +274,22 @@
         color: var(--primary-dark) !important;
         background: #e1f0f8;
         border-radius: 99px;
+        font-size: 10px !important;
+        font-weight: 700;
+      }
+      .reason-tags {
+        display: flex !important;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 8px;
+      }
+      .reason-tag {
+        display: inline-block !important;
+        padding: 3px 6px;
+        color: var(--primary-dark) !important;
+        background: #edf7fb;
+        border: 1px solid #cde2ef;
+        border-radius: 5px;
         font-size: 10px !important;
         font-weight: 700;
       }
@@ -286,6 +322,44 @@
         background: #e2f8ea;
         border-color: #22a965;
       }
+      .driving-profile {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 12px;
+        align-items: center;
+        margin: 0 0 18px;
+        padding: 14px;
+        background: rgba(255,255,255,.72);
+        border: 1px solid #cde2ef;
+        border-radius: 11px;
+      }
+      .driving-profile-label small,
+      .driving-profile-stat small {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text-muted);
+        font-size: 10px;
+      }
+      .driving-profile-label strong {
+        display: block;
+        color: var(--primary-dark);
+        font-size: 15px;
+      }
+      .driving-profile-stat {
+        padding-left: 12px;
+        border-left: 1px solid #d9e3ec;
+      }
+      .driving-profile-stat strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+      .driving-profile-note {
+        grid-column: 1 / -1;
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 11px;
+        line-height: 1.6;
+      }
       .recommendation-price {
         margin-top: 10px;
         color: var(--primary);
@@ -298,7 +372,9 @@
         .grid { grid-template-columns: 1fr; gap: 16px; }
         .input-group.full-width { grid-column: auto; }
         .result-box { padding: 19px 16px; }
-        .recommendation-list { grid-template-columns: 1fr; }
+        .recommendation-group-list { grid-template-columns: 1fr; }
+        .driving-profile { grid-template-columns: 1fr 1fr; }
+        .driving-profile-label { grid-column: 1 / -1; }
       }
     </style>
   </head>
@@ -341,15 +417,12 @@
           <div class="input-group">
             <label for="tireBrand">타이어 브랜드</label>
             <select id="tireBrand">
-              <option value="">전체 브랜드</option>
+              <option value="">전체 국내 브랜드</option>
               <option value="HANKOOK">한국타이어</option>
               <option value="KUMHO">금호타이어</option>
               <option value="NEXEN">넥센타이어</option>
-              <option value="MICHELIN">미쉐린</option>
-              <option value="CONTINENTAL">콘티넨탈</option>
-              <option value="PIRELLI">피렐리</option>
             </select>
-            <span class="help-text">추천 목록을 좁히는 데 사용합니다.</span>
+            <span class="help-text">선택하지 않으면 국내 3개 브랜드를 모두 비교합니다.</span>
           </div>
 
           <div class="input-group">
@@ -390,8 +463,23 @@
           <p class="formula-note">계산 기준: 현재까지의 마모율, 평균 주행 속도, 선택한 계절 보정값을 반영한 참고용 추정치입니다. 정비소 측정 결과를 우선해 주세요.</p>
 
           <section class="recommendation-box" aria-labelledby="recommendationTitle">
-            <h3 id="recommendationTitle">입력 규격에 맞는 타이어 참고 목록</h3>
-            <p class="recommendation-note">외부 API 없이 앱에 포함된 참고 카탈로그에서 표시합니다. 가격은 실시간 판매가가 아닙니다.</p>
+            <h3 id="recommendationTitle">운전 성향을 반영한 국내 타이어 추천</h3>
+            <p class="recommendation-note">평균 주행속도와 누적 주행거리 대비 마모율, 계절·규격을 함께 반영합니다. 가격은 실시간 판매가가 아닌 참고가입니다.</p>
+            <div class="driving-profile" id="drivingProfileBox" aria-live="polite">
+              <div class="driving-profile-label">
+                <small>운전 성향 분석</small>
+                <strong id="drivingProfileLabel">계산 후 분석됩니다</strong>
+              </div>
+              <div class="driving-profile-stat">
+                <small>평균 주행속도</small>
+                <strong id="drivingSpeed">-</strong>
+              </div>
+              <div class="driving-profile-stat">
+                <small>1만 km당 마모</small>
+                <strong id="drivingWearRate">-</strong>
+              </div>
+              <p class="driving-profile-note" id="drivingProfileNote">현재 입력값을 계산하면 운전 성향과 추천 기준을 함께 표시합니다.</p>
+            </div>
             <div class="recommendation-list" id="recommendationList"></div>
           </section>
         </div>
@@ -401,22 +489,28 @@
     <script>
       const LIMIT_MM = 1.6;
       const NEW_TREAD_MM = 8.0;
+      const BRAND_LABELS = {
+        HANKOOK: '한국타이어',
+        KUMHO: '금호타이어',
+        NEXEN: '넥센타이어',
+      };
+      const BRAND_ORDER = ['HANKOOK', 'KUMHO', 'NEXEN'];
       const localCatalog = [
-        { brand: 'HANKOOK', size: '225/55R17', name: 'Ventus S1 evo3', price: 129000, note: '정숙성과 주행 안정성 균형', seasonFit: { mild: 4, summer: 4, winter: 2 } },
-        { brand: 'HANKOOK', size: '205/55R16', name: 'Kinergy EX', price: 98000, note: '일상 주행 중심의 편안한 승차감', seasonFit: { mild: 4, summer: 3, winter: 2 } },
-        { brand: 'KUMHO', size: '225/55R17', name: 'ECSTA PS71', price: 116000, note: '젖은 노면 제동과 핸들링', seasonFit: { mild: 4, summer: 5, winter: 2 } },
-        { brand: 'KUMHO', size: '235/45R18', name: 'ECSTA PS91', price: 174000, note: '고성능 차량용 스포츠 타이어', seasonFit: { mild: 4, summer: 5, winter: 1 } },
-        { brand: 'NEXEN', size: '225/55R17', name: 'NFERA AU7', price: 108000, note: '저소음과 장거리 주행', seasonFit: { mild: 4, summer: 4, winter: 2 } },
-        { brand: 'NEXEN', size: '215/60R17', name: 'NFERA Supreme', price: 121000, note: 'SUV 승차감과 안정성', seasonFit: { mild: 4, summer: 3, winter: 2 } },
-        { brand: 'MICHELIN', size: '225/55R17', name: 'Primacy 4+', price: 188000, note: '마일리지와 젖은 노면 성능', seasonFit: { mild: 5, summer: 4, winter: 2 } },
-        { brand: 'MICHELIN', size: '205/55R16', name: 'Primacy 4', price: 159000, note: '편안한 승차감과 정숙성', seasonFit: { mild: 5, summer: 4, winter: 2 } },
-        { brand: 'CONTINENTAL', size: '225/55R17', name: 'PremiumContact 7', price: 177000, note: '균형 잡힌 제동과 코너링', seasonFit: { mild: 4, summer: 4, winter: 2 } },
-        { brand: 'PIRELLI', size: '235/45R18', name: 'P ZERO', price: 214000, note: '스포츠 주행 반응성과 접지력', seasonFit: { mild: 4, summer: 5, winter: 1 } },
+        { brand: 'HANKOOK', sizes: ['225/55R17', '205/55R16'], name: 'Ventus S1 evo3', price: 129000, note: '고속 주행 안정성과 젖은 노면 제동', seasonFit: { mild: 4, summer: 5, winter: 2 }, drivingFit: { highSpeed: 5, steady: 3 }, styleTags: { highSpeed: ['고속 안정성', '젖은 노면 제동'], steady: ['균형 핸들링', '주행 안정성'] } },
+        { brand: 'HANKOOK', sizes: ['225/55R17', '205/55R16'], name: 'Ventus Prime4', price: 118000, note: '정숙성과 편안한 승차감 중심', seasonFit: { mild: 5, summer: 4, winter: 2 }, drivingFit: { highSpeed: 3, steady: 5 }, styleTags: { highSpeed: ['안정적인 코너링', '고속 승차감'], steady: ['정숙성', '편안한 승차감'] } },
+        { brand: 'HANKOOK', sizes: ['225/55R17', '205/55R16'], name: 'Kinergy 4S2', price: 126000, note: '계절 변화에 대응하는 올시즌 성능', seasonFit: { mild: 4, summer: 3, winter: 4 }, drivingFit: { highSpeed: 2, steady: 4 }, styleTags: { highSpeed: ['사계절 대응', '안정적인 접지'], steady: ['올시즌 편의', '장거리 균형'] } },
+        { brand: 'KUMHO', sizes: ['225/55R17', '235/45R18'], name: 'ECSTA PS71', price: 116000, note: '고속 핸들링과 젖은 노면 제동', seasonFit: { mild: 4, summer: 5, winter: 2 }, drivingFit: { highSpeed: 5, steady: 3 }, styleTags: { highSpeed: ['고속 핸들링', '젖은 노면 제동'], steady: ['선명한 조향감', '안정성'] } },
+        { brand: 'KUMHO', sizes: ['225/55R17', '235/45R18'], name: 'Majesty9 SOLUS TA91', price: 142000, note: '정숙성과 승차감에 초점을 둔 세단용', seasonFit: { mild: 5, summer: 4, winter: 2 }, drivingFit: { highSpeed: 3, steady: 5 }, styleTags: { highSpeed: ['고속 안정성', '부드러운 조향'], steady: ['정숙성', '승차감'] } },
+        { brand: 'KUMHO', sizes: ['225/55R17', '205/55R16'], name: 'SOLUS 4S HA32', price: 109000, note: '비·눈을 포함한 사계절 주행 대응', seasonFit: { mild: 4, summer: 3, winter: 4 }, drivingFit: { highSpeed: 2, steady: 4 }, styleTags: { highSpeed: ['사계절 접지', '안전한 제동'], steady: ['사계절 편의', '안정적인 마일리지'] } },
+        { brand: 'NEXEN', sizes: ['225/55R17', '235/45R18'], name: 'NFERA Sport', price: 135000, note: '스포츠 주행 반응성과 고속 안정성', seasonFit: { mild: 4, summer: 5, winter: 2 }, drivingFit: { highSpeed: 5, steady: 3 }, styleTags: { highSpeed: ['스포츠 핸들링', '고속 안정성'], steady: ['빠른 응답성', '주행 안정성'] } },
+        { brand: 'NEXEN', sizes: ['225/55R17', '215/60R17'], name: 'NFERA AU7', price: 108000, note: '저소음과 장거리 주행을 고려한 세단용', seasonFit: { mild: 5, summer: 4, winter: 2 }, drivingFit: { highSpeed: 3, steady: 5 }, styleTags: { highSpeed: ['안정적인 제동', '고속 정숙성'], steady: ['저소음', '장거리 마일리지'] } },
+        { brand: 'NEXEN', sizes: ['225/55R17', '205/55R16'], name: 'N blue 4Season 2', price: 104000, note: '비와 눈에 대응하는 올시즌 타이어', seasonFit: { mild: 4, summer: 3, winter: 4 }, drivingFit: { highSpeed: 2, steady: 4 }, styleTags: { highSpeed: ['사계절 접지', '안정적인 제동'], steady: ['올시즌 편의', '균형 잡힌 마일리지'] } },
       ];
 
       const getNumber = (id) => Number(document.getElementById(id).value);
       const formatNumber = (value) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
       const normalizeSize = (value) => String(value).toUpperCase().replace(/\s+/g, '');
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
       const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
       }[character]));
@@ -431,46 +525,85 @@
         note.style.display = 'block';
       }
 
-      function renderRecommendations() {
+      function assessDrivingProfile(averageSpeed, observedWearRate) {
+        const wearPer10k = observedWearRate * 10000;
+        const speedSignal = clamp((averageSpeed - 45) / 35, 0, 1);
+        const wearSignal = clamp((wearPer10k - 1.2) / 1.8, 0, 1);
+        const highSpeedScore = Math.round((speedSignal * 0.7 + wearSignal * 0.3) * 100);
+        const key = highSpeedScore >= 55 ? 'highSpeed' : 'steady';
+        return {
+          key,
+          label: key === 'highSpeed' ? '고속 운전 성향' : '정속 운전 성향',
+          highSpeedScore,
+          averageSpeed,
+          wearPer10k,
+        };
+      }
+
+      function renderDrivingProfile(profile, totalMileage) {
+        document.getElementById('drivingProfileLabel').textContent = profile.label;
+        document.getElementById('drivingSpeed').textContent = `${profile.averageSpeed.toFixed(1)} km/h`;
+        document.getElementById('drivingWearRate').textContent = `${profile.wearPer10k.toFixed(2)} mm`;
+        document.getElementById('drivingProfileNote').textContent =
+          `평균속도 ${profile.averageSpeed.toFixed(1)}km/h와 ${formatNumber(totalMileage)}km 주행 중 누적된 1만 km당 마모량을 함께 분석했습니다. ` +
+          `${profile.label}에 맞는 주행 안정성·승차감 기준으로 추천 순위를 정했습니다.`;
+      }
+
+      function renderRecommendations(profile) {
         const brand = document.getElementById('tireBrand').value;
         const size = normalizeSize(document.getElementById('tireSize').value);
         const selectedSeason = document.getElementById('season').selectedOptions[0];
         const seasonKey = selectedSeason.dataset.seasonKey || 'mild';
         const seasonLabel = selectedSeason.dataset.seasonLabel || '현재 계절';
-        const ranked = localCatalog
-          .map((item) => {
-            const sizeScore = size && item.size === size ? 100 : (size ? 0 : 10);
-            const brandScore = brand && item.brand === brand ? 30 : (brand ? 0 : 5);
-            const seasonScore = (item.seasonFit[seasonKey] || 0) * 10;
-            return { item, score: sizeScore + brandScore + seasonScore };
-          })
-          .sort((left, right) => right.score - left.score);
-        const matches = ranked.filter(({ item }) =>
-          (!brand || item.brand === brand) && (!size || item.size === size)
-        );
-        const fallback = ranked.filter(({ item }) => (!size || item.size === size));
-        const brandFallback = ranked.filter(({ item }) => (!brand || item.brand === brand));
-        const selected = matches.length ? matches : (fallback.length ? fallback : (brandFallback.length ? brandFallback : ranked));
         const list = document.getElementById('recommendationList');
-        list.innerHTML = selected.slice(0, 3).map(({ item }) => {
-          const query = `${item.brand} ${item.name} ${item.size}`;
-          const encodedQuery = encodeURIComponent(query);
-          const naverUrl = `https://search.shopping.naver.com/search/all?query=${encodedQuery}`;
-          return `
-            <article class="recommendation-card">
-              <strong>${escapeHtml(item.brand)} · ${escapeHtml(item.name)}</strong>
-              <span>${escapeHtml(item.size)} · ${escapeHtml(item.note)}</span>
-              <span class="recommendation-season">${escapeHtml(seasonLabel)} 적합도 ${item.seasonFit[seasonKey]}/5</span>
-              <span class="recommendation-price">참고가 ${formatNumber(item.price)}원</span>
-              <a
-                class="shop-search-link naver-search-link"
-                href="${escapeHtml(naverUrl)}"
-                target="_blank"
-                rel="noopener noreferrer"
-              >네이버 쇼핑에서 가격 비교</a>
-            </article>
-          `;
-        }).join('');
+        const groups = BRAND_ORDER
+          .filter((brandKey) => !brand || brandKey === brand)
+          .map((brandKey) => {
+            const ranked = localCatalog
+              .filter((item) => item.brand === brandKey)
+              .map((item) => {
+                const sizeMatch = !size || item.sizes.includes(size);
+                const sizeScore = sizeMatch ? 1000 : 0;
+                const styleScore = (item.drivingFit[profile.key] || 0) * 25;
+                const seasonScore = (item.seasonFit[seasonKey] || 0) * 10;
+                return { item, sizeMatch, score: sizeScore + styleScore + seasonScore };
+              })
+              .sort((left, right) => right.score - left.score);
+            return { brandKey, items: ranked.slice(0, 3) };
+          });
+
+        const seasonTag = { mild: '봄·가을 균형', summer: '여름 접지', winter: '겨울 저온 대응' }[seasonKey] || seasonLabel;
+        list.innerHTML = groups.map(({ brandKey, items }) => `
+          <section class="recommendation-group" aria-label="${escapeHtml(BRAND_LABELS[brandKey])} 추천">
+            <h4>${escapeHtml(BRAND_LABELS[brandKey])} 추천 3개</h4>
+            <div class="recommendation-group-list">
+              ${items.map(({ item, sizeMatch }, index) => {
+                const querySize = size || item.sizes[0];
+                const encodedQuery = encodeURIComponent(`${BRAND_LABELS[item.brand]} ${item.name} ${querySize}`);
+                const naverUrl = `https://search.shopping.naver.com/search/all?query=${encodedQuery}`;
+                const tags = [...item.styleTags[profile.key], seasonTag, sizeMatch ? '규격 일치' : '규격 확인 필요'].slice(0, 4);
+                return `
+                  <article class="recommendation-card">
+                    <span class="recommendation-rank">${index + 1}순위</span>
+                    <strong>${escapeHtml(item.name)}</strong>
+                    <span>${escapeHtml(item.sizes.join(' · '))} · ${escapeHtml(item.note)}</span>
+                    <div class="reason-tags" aria-label="추천 이유">
+                      ${tags.map((tag) => `<span class="reason-tag">${escapeHtml(tag)}</span>`).join('')}
+                    </div>
+                    <span class="recommendation-season">${escapeHtml(seasonLabel)} 적합도 ${item.seasonFit[seasonKey]}/5 · ${escapeHtml(profile.label)}</span>
+                    <span class="recommendation-price">참고가 ${formatNumber(item.price)}원</span>
+                    <a
+                      class="shop-search-link naver-search-link"
+                      href="${escapeHtml(naverUrl)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >네이버 쇼핑에서 가격 비교</a>
+                  </article>
+                `;
+              }).join('')}
+            </div>
+          </section>
+        `).join('');
       }
 
       function showError(message) {
@@ -499,6 +632,7 @@
         const usedDepth = NEW_TREAD_MM - currentWear;
         const observedWearRate = usedDepth / totalMileage;
         const averageSpeed = avgDist / (avgTime / 60);
+        const drivingProfile = assessDrivingProfile(averageSpeed, observedWearRate);
         const speedFactor = Math.min(1.2, Math.max(.9, 1 + ((averageSpeed - 30) / 300)));
         const adjustedWearRate = observedWearRate * seasonFactor * speedFactor;
         const remainingDepth = Math.max(0, currentWear - LIMIT_MM);
@@ -527,7 +661,8 @@
           insightText.style.borderLeftColor = 'var(--success)';
         }
 
-        renderRecommendations();
+        renderDrivingProfile(drivingProfile, totalMileage);
+        renderRecommendations(drivingProfile);
         document.getElementById('errorBox').style.display = 'none';
         document.getElementById('resultBox').style.display = 'block';
         document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
