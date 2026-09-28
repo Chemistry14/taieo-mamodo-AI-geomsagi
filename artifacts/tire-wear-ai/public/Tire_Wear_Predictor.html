@@ -202,6 +202,19 @@
         font-size: 13px;
         line-height: 1.75;
       }
+      .season-warning {
+        display: none;
+        margin-top: 12px;
+        padding: 13px 14px;
+        color: #8f3f16;
+        background: #fff5e9;
+        border: 1px solid #f1c99e;
+        border-left: 3px solid var(--warning);
+        border-radius: 4px 10px 10px 4px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.7;
+      }
       .formula-note {
         margin: 22px 0 0;
         color: var(--text-muted);
@@ -460,6 +473,7 @@
           </div>
 
           <div class="insight" id="insightText"></div>
+          <div class="season-warning" id="seasonWarning" role="status"></div>
           <p class="formula-note">계산 기준: 현재까지의 마모율, 평균 주행 속도, 선택한 계절 보정값을 반영한 참고용 추정치입니다. 정비소 측정 결과를 우선해 주세요.</p>
 
           <section class="recommendation-box" aria-labelledby="recommendationTitle">
@@ -659,6 +673,15 @@
         } else {
           insightText.textContent = '현재 입력값 기준으로는 여유가 있는 편입니다. 공기압을 정기적으로 확인하고, 편마모나 균열이 보이면 수치와 관계없이 점검받으세요.';
           insightText.style.borderLeftColor = 'var(--success)';
+        }
+
+        const seasonWarning = document.getElementById('seasonWarning');
+        if (currentWear <= 3.0) {
+          seasonWarning.textContent = '현재 트레드 깊이가 3.0mm 이하입니다. 여름철 고온·빗길과 겨울철 저온·눈길에서는 안전 여유가 줄어들 수 있으므로, 해당 계절이 오기 전에 타이어 교체를 권장합니다.';
+          seasonWarning.style.display = 'block';
+        } else {
+          seasonWarning.textContent = '';
+          seasonWarning.style.display = 'none';
         }
 
         renderDrivingProfile(drivingProfile, totalMileage);
