@@ -237,6 +237,23 @@
         color: var(--text-muted);
         font-size: 11px;
       }
+      .recognized-tire-panel {
+        display: none;
+        gap: 4px;
+        margin: 0 0 18px;
+        padding: 13px 14px;
+        color: var(--text);
+        background: #edf9f2;
+        border: 1px solid #bfe2ca;
+        border-radius: 10px;
+      }
+      .recognized-tire-panel small {
+        color: var(--success);
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .recognized-tire-panel strong { font-size: 14px; }
+      .recognized-tire-panel span { color: var(--text-muted); font-size: 10px; line-height: 1.55; }
       .recommendation-list {
         display: grid;
         gap: 18px;
@@ -479,6 +496,11 @@
           <section class="recommendation-box" aria-labelledby="recommendationTitle">
             <h3 id="recommendationTitle">운전 성향을 반영한 국내 타이어 추천</h3>
             <p class="recommendation-note">평균 주행속도와 누적 주행거리 대비 마모율, 계절·규격을 함께 반영합니다. 가격은 실시간 판매가가 아닌 참고가입니다.</p>
+            <div class="recognized-tire-panel" id="recognizedTirePanel" aria-live="polite">
+              <small>옆면 사진에서 인식된 타이어</small>
+              <strong id="recognizedTireTitle"></strong>
+              <span id="recognizedTireDetails"></span>
+            </div>
             <div class="driving-profile" id="drivingProfileBox" aria-live="polite">
               <div class="driving-profile-label">
                 <small>운전 성향 분석</small>
@@ -509,6 +531,7 @@
         NEXEN: '넥센타이어',
       };
       const BRAND_ORDER = ['HANKOOK', 'KUMHO', 'NEXEN'];
+      const params = new URLSearchParams(window.location.search);
       const localCatalog = [
         { brand: 'HANKOOK', sizes: ['225/55R17', '205/55R16'], name: 'Ventus S1 evo3', price: 129000, note: '고속 주행 안정성과 젖은 노면 제동', seasonFit: { mild: 4, summer: 5, winter: 2 }, drivingFit: { highSpeed: 5, steady: 3 }, styleTags: { highSpeed: ['고속 안정성', '젖은 노면 제동'], steady: ['균형 핸들링', '주행 안정성'] } },
         { brand: 'HANKOOK', sizes: ['225/55R17', '205/55R16'], name: 'Ventus Prime4', price: 118000, note: '정숙성과 편안한 승차감 중심', seasonFit: { mild: 5, summer: 4, winter: 2 }, drivingFit: { highSpeed: 3, steady: 5 }, styleTags: { highSpeed: ['안정적인 코너링', '고속 승차감'], steady: ['정숙성', '편안한 승차감'] } },
@@ -524,19 +547,44 @@
       const getNumber = (id) => Number(document.getElementById(id).value);
       const formatNumber = (value) => new Intl.NumberFormat('ko-KR').format(Math.round(value));
       const normalizeSize = (value) => String(value).toUpperCase().replace(/\s+/g, '');
+      const normalizeModel = (value) => String(value).toUpperCase().replace(/[^A-Z0-9가-힣]/g, '');
       const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
       const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
       }[character]));
 
       function applyInspectionDepth() {
-        const queryValue = Number(new URLSearchParams(window.location.search).get('currentWear'));
+        const queryValue = Number(params.get('currentWear'));
         if (!Number.isFinite(queryValue) || queryValue < 0 || queryValue > NEW_TREAD_MM) return;
         const appliedValue = Number(queryValue.toFixed(1));
         document.getElementById('currentWear').value = appliedValue.toFixed(1);
         const note = document.getElementById('appliedDepthNote');
         note.textContent = `사진 검사 결과 ${appliedValue.toFixed(1)}mm를 적용했습니다.`;
         note.style.display = 'block';
+      }
+
+      let appliedTireRecognition = null;
+
+      function applyRecognizedTire() {
+        const brand = params.get('tireBrand') || '';
+        const model = params.get('tireModel') || '';
+        const size = params.get('tireSize') || '';
+        const season = params.get('tireSeason') || '';
+        if (!brand && !model && !size && !season) return;
+
+        appliedTireRecognition = { brand, model, size: normalizeSize(size), season };
+        if (size) document.getElementById('tireSize').value = normalizeSize(size);
+        if (season) {
+          const option = Array.from(document.getElementById('season').options)
+            .find((candidate) => candidate.dataset.seasonKey === season);
+          if (option) option.selected = true;
+        }
+
+        const title = `${BRAND_LABELS[brand] || '브랜드 미확인'} · ${model || '모델명 미확인'}`;
+        const seasonLabel = season === 'summer' ? '여름용 추정' : season === 'winter' ? '겨울용 추정' : season === 'allSeason' ? '올시즌 추정' : '계절 표기 미확인';
+        document.getElementById('recognizedTireTitle').textContent = title;
+        document.getElementById('recognizedTireDetails').textContent = `${size || '규격 미확인'} · ${seasonLabel} · 추천 순위에 인식 결과 반영`;
+        document.getElementById('recognizedTirePanel').style.display = 'grid';
       }
 
       function assessDrivingProfile(averageSpeed, observedWearRate) {
@@ -569,6 +617,8 @@
         const selectedSeason = document.getElementById('season').selectedOptions[0];
         const seasonKey = selectedSeason.dataset.seasonKey || 'mild';
         const seasonLabel = selectedSeason.dataset.seasonLabel || '현재 계절';
+        const recognizedModel = normalizeModel(appliedTireRecognition?.model || '');
+        const recognizedBrand = appliedTireRecognition?.brand || '';
         const list = document.getElementById('recommendationList');
         const groups = BRAND_ORDER
           .filter((brandKey) => !brand || brandKey === brand)
@@ -580,7 +630,9 @@
                 const sizeScore = sizeMatch ? 1000 : 0;
                 const styleScore = (item.drivingFit[profile.key] || 0) * 25;
                 const seasonScore = (item.seasonFit[seasonKey] || 0) * 10;
-                return { item, sizeMatch, score: sizeScore + styleScore + seasonScore };
+                const recognizedBrandScore = recognizedBrand && item.brand === recognizedBrand ? 120 : 0;
+                const recognizedModelScore = recognizedModel && normalizeModel(item.name) === recognizedModel ? 600 : 0;
+                return { item, sizeMatch, recognizedModel: recognizedModelScore > 0, score: sizeScore + styleScore + seasonScore + recognizedBrandScore + recognizedModelScore };
               })
               .sort((left, right) => right.score - left.score);
             return { brandKey, items: ranked.slice(0, 3) };
@@ -591,11 +643,11 @@
           <section class="recommendation-group" aria-label="${escapeHtml(BRAND_LABELS[brandKey])} 추천">
             <h4>${escapeHtml(BRAND_LABELS[brandKey])} 추천 3개</h4>
             <div class="recommendation-group-list">
-              ${items.map(({ item, sizeMatch }, index) => {
+              ${items.map(({ item, sizeMatch, recognizedModel }, index) => {
                 const querySize = size || item.sizes[0];
                 const encodedQuery = encodeURIComponent(`${BRAND_LABELS[item.brand]} ${item.name} ${querySize}`);
                 const naverUrl = `https://search.shopping.naver.com/search/all?query=${encodedQuery}`;
-                const tags = [...item.styleTags[profile.key], seasonTag, sizeMatch ? '규격 일치' : '규격 확인 필요'].slice(0, 4);
+                const tags = [...(recognizedModel ? ['사진 인식 모델'] : []), ...item.styleTags[profile.key], seasonTag, sizeMatch ? '규격 일치' : '규격 확인 필요'].slice(0, 4);
                 return `
                   <article class="recommendation-card">
                     <span class="recommendation-rank">${index + 1}순위</span>
@@ -698,6 +750,7 @@
         });
       });
       applyInspectionDepth();
+      applyRecognizedTire();
     </script>
   </body>
 </html>

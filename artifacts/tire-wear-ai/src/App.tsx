@@ -1,6 +1,7 @@
 import { type ChangeEvent, type DragEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AlertCircle, Camera, CheckCircle2, CircleAlert, Gauge, Info, RotateCcw, Ruler, ShieldCheck, SunMedium, TriangleAlert, UploadCloud } from 'lucide-react';
+import { createWorker } from 'tesseract.js';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -16,7 +17,36 @@ type InspectionResult = {
   verdict: Verdict;
 };
 
+type TireRecognition = {
+  brand: 'HANKOOK' | 'KUMHO' | 'NEXEN' | 'UNKNOWN';
+  brandLabel: string;
+  model: string;
+  size: string;
+  season: 'summer' | 'winter' | 'mild' | 'allSeason' | 'unknown';
+  seasonLabel: string;
+  markers: string[];
+  confidence: 'high' | 'medium' | 'low';
+};
+
+type RecognitionState = 'idle' | 'reading' | 'complete' | 'error';
+
 const queryClient = new QueryClient();
+const tireBrands = [
+  { key: 'HANKOOK' as const, label: '한국타이어', patterns: ['HANKOOK', '한국타이어'] },
+  { key: 'KUMHO' as const, label: '금호타이어', patterns: ['KUMHO', '금호타이어', '금호'] },
+  { key: 'NEXEN' as const, label: '넥센타이어', patterns: ['NEXEN', '넥센타이어', '넥센'] },
+];
+const knownTireModels = [
+  { brand: 'HANKOOK' as const, name: 'Ventus S1 evo3', search: 'VENTUSS1EVO3', season: 'summer' as const },
+  { brand: 'HANKOOK' as const, name: 'Ventus Prime4', search: 'VENTUSPRIME4', season: 'mild' as const },
+  { brand: 'HANKOOK' as const, name: 'Kinergy 4S2', search: 'KINERGY4S2', season: 'allSeason' as const },
+  { brand: 'KUMHO' as const, name: 'ECSTA PS71', search: 'ECSTAPS71', season: 'summer' as const },
+  { brand: 'KUMHO' as const, name: 'Majesty9 SOLUS TA91', search: 'MAJESTY9SOLUSTA91', season: 'mild' as const },
+  { brand: 'KUMHO' as const, name: 'SOLUS 4S HA32', search: 'SOLUS4SHA32', season: 'allSeason' as const },
+  { brand: 'NEXEN' as const, name: 'NFERA Sport', search: 'NFERASPORT', season: 'summer' as const },
+  { brand: 'NEXEN' as const, name: 'NFERA AU7', search: 'NFERAAU7', season: 'mild' as const },
+  { brand: 'NEXEN' as const, name: 'N blue 4Season 2', search: 'NBLUE4SEASON2', season: 'allSeason' as const },
+];
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -77,6 +107,58 @@ function resultForCard(cardWidthPx: number): InspectionResult {
   return { cardWidthPx, depthMm, verdict };
 }
 
+function normalizeOcrText(text: string) {
+  return text.toUpperCase().replace(/[^A-Z0-9가-힣]/g, '');
+}
+
+function recognizeTireFromText(text: string): TireRecognition {
+  const normalized = normalizeOcrText(text);
+  const brandMatch = tireBrands.find((brand) => brand.patterns.some((pattern) => normalized.includes(normalizeOcrText(pattern))));
+  const modelMatch = knownTireModels.find((model) => normalized.includes(model.search));
+  const sizeMatch = text.match(/(\d{3})\s*[\/\-\s]\s*(\d{2})\s*[A-Z]?\s*(\d{2})(?!\d)/i);
+  const size = sizeMatch ? `${sizeMatch[1]}/${sizeMatch[2]}R${sizeMatch[3]}` : '';
+  const markers = [
+    /3PMSF|SNOW|WINTER|ICE|알파인/i.test(text) ? '3PMSF/겨울 표기' : '',
+    /M\s*[+&]\s*S|ALL\s*SEASON|4\s*SEASON|4S/i.test(text) ? 'M+S/올시즌 표기' : '',
+  ].filter(Boolean);
+  const season = markers.some((marker) => marker.includes('겨울'))
+    ? 'winter'
+    : markers.some((marker) => marker.includes('올시즌'))
+      ? 'allSeason'
+      : modelMatch?.season ?? 'unknown';
+  const seasonLabel = season === 'summer'
+    ? '여름용 추정'
+    : season === 'winter'
+      ? '겨울용 추정'
+      : season === 'mild'
+        ? '봄·가을용 추정'
+      : season === 'allSeason'
+        ? '올시즌 추정'
+        : '계절 표기 미확인';
+  const detectedFields = [brandMatch, modelMatch, sizeMatch, season !== 'unknown' ? season : null].filter(Boolean).length;
+
+  return {
+    brand: brandMatch?.key ?? modelMatch?.brand ?? 'UNKNOWN',
+    brandLabel: brandMatch?.label ?? tireBrands.find((brand) => brand.key === modelMatch?.brand)?.label ?? '브랜드 미확인',
+    model: modelMatch?.name ?? '모델명 미확인',
+    size,
+    season,
+    seasonLabel,
+    markers,
+    confidence: detectedFields >= 3 ? 'high' : detectedFields === 2 ? 'medium' : 'low',
+  };
+}
+
+function predictorHref(depthMm: number, recognition: TireRecognition | null) {
+  const params = new URLSearchParams({ currentWear: depthMm.toFixed(1) });
+  if (!recognition) return `./Tire_Wear_Predictor.html?${params.toString()}`;
+  if (recognition.brand !== 'UNKNOWN') params.set('tireBrand', recognition.brand);
+  if (recognition.model !== '모델명 미확인') params.set('tireModel', recognition.model);
+  if (recognition.size) params.set('tireSize', recognition.size);
+  if (recognition.season !== 'unknown') params.set('tireSeason', recognition.season);
+  return `./Tire_Wear_Predictor.html?${params.toString()}`;
+}
+
 function Home() {
   const [state, setState] = useState<InspectionState>('idle');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -85,8 +167,13 @@ function Home() {
   const [result, setResult] = useState<InspectionResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
+  const [tireRecognition, setTireRecognition] = useState<TireRecognition | null>(null);
+  const [recognitionState, setRecognitionState] = useState<RecognitionState>('idle');
+  const [recognitionError, setRecognitionError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sidewallInputRef = useRef<HTMLInputElement>(null);
   const analysisId = useRef(0);
+  const recognitionId = useRef(0);
   const previewRef = useRef('');
 
   useEffect(() => () => {
@@ -103,7 +190,12 @@ function Home() {
     setProgress(0);
     setResult(null);
     setError('');
+    recognitionId.current += 1;
+    setTireRecognition(null);
+    setRecognitionState('idle');
+    setRecognitionError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (sidewallInputRef.current) sidewallInputRef.current.value = '';
   }, []);
 
   const inspectFile = useCallback(async (file: File) => {
@@ -143,6 +235,47 @@ function Home() {
     setProgress(100);
     setState('complete');
   }, []);
+
+  const inspectSidewallFile = useCallback(async (file: File) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setRecognitionError('옆면 사진은 JPG, JPEG, PNG 파일만 사용할 수 있습니다.');
+      setRecognitionState('error');
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setRecognitionError('옆면 사진은 12MB 이하로 선택해 주세요.');
+      setRecognitionState('error');
+      return;
+    }
+
+    const currentId = recognitionId.current + 1;
+    recognitionId.current = currentId;
+    setRecognitionError('');
+    setTireRecognition(null);
+    setRecognitionState('reading');
+    let worker: Awaited<ReturnType<typeof createWorker>> | null = null;
+
+    try {
+      worker = await createWorker('eng');
+      if (recognitionId.current !== currentId) return;
+      const { data } = await worker.recognize(file);
+      if (recognitionId.current !== currentId) return;
+      const recognition = recognizeTireFromText(data.text);
+      setTireRecognition(recognition);
+      setRecognitionState('complete');
+    } catch {
+      if (recognitionId.current !== currentId) return;
+      setRecognitionError('옆면 글자를 읽지 못했습니다. 글자가 크게 보이고 반사광이 적은 사진으로 다시 시도해 주세요.');
+      setRecognitionState('error');
+    } finally {
+      await worker?.terminate();
+    }
+  }, []);
+
+  const handleSidewallChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) void inspectSidewallFile(file);
+  }, [inspectSidewallFile]);
 
   const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -232,6 +365,37 @@ function Home() {
               </div>
               {error && <div className="helper-note" role="alert" data-testid="status-upload-error"><AlertCircle />{error}</div>}
               {!error && <div className="helper-note"><Info />지원 형식: JPG, JPEG, PNG · 최대 12MB · 원본 사진은 서버로 전송되지 않습니다.</div>}
+               <div className="sidewall-lookup" data-testid="panel-sidewall-recognition">
+                 <div className="sidewall-lookup-head">
+                   <div>
+                     <strong>옆면 사진으로 타이어 정보 읽기</strong>
+                     <p>브랜드·모델·규격·계절 표기를 브라우저 안에서 인식합니다.</p>
+                   </div>
+                   <Ruler aria-hidden="true" />
+                 </div>
+                 <input
+                   ref={sidewallInputRef}
+                   className="sidewall-input"
+                   type="file"
+                   accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                   onChange={handleSidewallChange}
+                   data-testid="input-sidewall-image"
+                   aria-label="타이어 옆면 사진 선택"
+                 />
+                 <button type="button" className="sidewall-button" onClick={() => sidewallInputRef.current?.click()} disabled={recognitionState === 'reading'} data-testid="button-sidewall-recognition">
+                   {recognitionState === 'reading' ? '옆면 글자를 읽는 중...' : '옆면 사진 선택하기'}
+                 </button>
+                 {recognitionError && <div className="sidewall-error" role="alert"><AlertCircle />{recognitionError}</div>}
+                 {tireRecognition && (
+                   <div className="recognized-tire-card" data-testid="card-recognized-tire">
+                     <div>
+                       <small>인식 결과</small>
+                       <strong>{tireRecognition.brandLabel} · {tireRecognition.model}</strong>
+                     </div>
+                     <span>{tireRecognition.size || '규격 미확인'} · {tireRecognition.seasonLabel} · 신뢰도 {tireRecognition.confidence}</span>
+                   </div>
+                 )}
+               </div>
             </div>
           )}
 
@@ -265,14 +429,22 @@ function Home() {
                     <div className="metric" data-testid="metric-tread-depth"><span className="metric-label">추정 트레드 깊이</span><strong className="metric-value">{result.depthMm.toFixed(1)}<small>mm</small></strong></div>
                   </div>
                   <p className="explanation" data-testid="text-result-explanation"><Ruler size={14} style={{ verticalAlign: 'middle', marginRight: 5, color: 'hsl(194 81% 38%)' }} /> 카드 단변 53.98mm와 사진 속 카드 폭을 기준으로, 40px 숨은 깊이 휴리스틱을 비례 환산한 추정값입니다. 촬영 각도와 빛에 따라 달라질 수 있습니다.</p>
+                   {tireRecognition && (
+                     <div className="recognized-tire-result" data-testid="result-recognized-tire">
+                       <small>옆면 사진에서 인식된 타이어</small>
+                       <strong>{tireRecognition.brandLabel} · {tireRecognition.model}</strong>
+                       <span>{tireRecognition.size || '규격 미확인'} · {tireRecognition.seasonLabel} · 신뢰도 {tireRecognition.confidence}</span>
+                       {tireRecognition.markers.length > 0 && <span>표기: {tireRecognition.markers.join(' · ')}</span>}
+                     </div>
+                   )}
                    <a
                      className="apply-predictor-button"
-                     href={`./Tire_Wear_Predictor.html?currentWear=${encodeURIComponent(result.depthMm.toFixed(1))}`}
+                     href={predictorHref(result.depthMm, tireRecognition)}
                      target="_blank"
                      rel="noopener noreferrer"
                      data-testid="link-apply-tread-depth"
                    >
-                     <Gauge /> 이 트레드 깊이로 수명 예측하기
+                     <Gauge /> {tireRecognition ? '인식된 타이어 정보와 함께 수명 예측하기' : '이 트레드 깊이로 수명 예측하기'}
                    </a>
                   <button type="button" className="reset-button" onClick={reset} data-testid="button-reset-inspection"><RotateCcw /> 다시 검사하기</button>
                 </div>
